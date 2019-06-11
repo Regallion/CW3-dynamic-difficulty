@@ -1,0 +1,107 @@
+#Original code by Grabz
+
+$payload:0.0
+$flightSpeed:0.0
+$vectorX:0.0
+$vectorY:0.0
+$minAirScale:0.0
+$maxAirScale:0.0
+
+$cellWidth:3
+$cellHeight:3
+
+$rotationSpeed:0.0
+
+$mode:0 #0,1 - 0 is AddCreeper payload, no effect. 1 is Spore payload, Spore effect
+
+$crashInterval:60
+
+$landingX:-1
+$landingY:-1
+
+once
+	Self CONST_TAKEMAPSPACE         FALSE SetUnitAttribute
+    Self CONST_CREATEPZ             FALSE SetUnitAttribute
+    Self CONST_SUPPORTSDIGITALIS    FALSE SetUnitAttribute
+    Self CONST_COUNTSFORVICTORY     FALSE SetUnitAttribute
+    Self CONST_NULLIFIERDAMAGES     FALSE SetUnitAttribute
+
+    Self CONST_CELLWIDTH <-cellWidth SetUnitAttribute
+    Self CONST_CELLHEIGHT <-cellHeight SetUnitAttribute
+    
+	Self "main" GetImageScale ->scaleY ->scaleX
+	Self "shadow" GetImageScale ->scaleSY ->scaleSX
+
+	<-maxAirScale <-minAirScale sub ->_difMax
+	<-maxAirScale <-scaleY sub ->_difCur
+	<-_difMax <-_difCur sub <-_difMax div ->_intervalMult
+
+	<-crashInterval <-_intervalMult mul ceil ->crashInterval
+
+	Self "shadow" GetImagePositionY <-crashInterval 0.0 add div ->gravity
+	<-scaleY <-minAirScale sub <-crashInterval 0.0 add div ->scaleChange
+
+	<-crashInterval SetTimer0
+
+	FALSE ->fallingIntoEndlessVoid
+endonce
+
+GetTimer0 eq0 if
+	<-fallingIntoEndlessVoid if
+		Self 0 Destroy
+	else
+		<-landingX -1 eq <-landingY -1 eq or if
+			CurrentCoords ->landingY ->landingX
+		endif
+
+		<-landingX <-landingY GetVoid not if
+
+			Self Self CONST_DESTROYMODE GetUnitAttribute Destroy
+		else
+			240 SetTimer0
+			Self "main" 2.1 SetImagePositionZ
+			Self "shadow" "NONE" SetImage
+			TRUE ->fallingIntoEndlessVoid
+		endif
+	endif
+endif
+
+Self CONST_PIXELCOORDX GetUnitAttribute ->_myX
+Self CONST_PIXELCOORDY GetUnitAttribute ->_myY
+
+<-_myX <-vectorX <-flightSpeed mul 30.0 div 8.0 mul add ->pixelX
+<-_myY <-vectorY <-flightSpeed mul 30.0 div 8.0 mul add ->pixelY
+
+<-pixelY <-gravity add ->pixelY
+
+Self CONST_PIXELCOORDX <-pixelX SetUnitAttribute
+Self CONST_PIXELCOORDY <-pixelY SetUnitAttribute
+
+<-scaleX <-scaleChange sub 0 max ->scaleX
+<-scaleY <-scaleChange sub 0 max ->scaleY
+
+<-scaleSX <-scaleChange add ->scaleSX
+<-scaleSY <-scaleChange add ->scaleSY
+
+Self "main" <-scaleX <-scaleY SetImageScale
+Self "shadow" <-scaleSX <-scaleSY SetImageScale
+
+Self "main"   Self "main" GetImageRotation <-rotationSpeed add SetImageRotation
+Self "shadow" Self "main" GetImageRotation <-rotationSpeed add SetImageRotation
+
+Self "shadow" Self "shadow" GetImagePositionX <-gravity add SetImagePositionX
+Self "shadow" Self "shadow" GetImagePositionY <-gravity sub SetImagePositionY
+Self "shadow" 0 0 0 @GetShadowAlpha SetImageColor
+
+<-_shadowPosY 0 gt if
+	Self "shadow" "NONE" SetImage
+endif
+
+:awake
+	FALSE OperateWhilePaused
+:destroyed
+	<-mode 1 eq if
+		4 CurrentCoords CellToPixel 0 1 1 0.05 CreateEffect
+	endif
+:GetShadowAlpha
+	200 Self "shadow" GetImagePositionY abs 4 mul sub floor return

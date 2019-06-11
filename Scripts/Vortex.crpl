@@ -1,0 +1,68 @@
+#Vortex script. Does vortex things
+
+
+once 
+	<-VortexManager 0 eq if
+		self 0 destroy 
+		return
+	endif
+	ClearTraceLog
+	HideTraceLog
+	<-Delay 30 mul SetTimer0
+	
+	@awake
+endonce 
+GetTimer1 eq0 if
+	11 CurrentCoords CellToPixel -1 <-Radius 0.15 mul dup 0.02 30 CreateEffectClipped 
+	30 SetTimer1
+endif
+
+"Will erupt into spores in " GetTimer0 30.00 div 0 Round " seconds." concat concat SetPopupText
+ <-VortexManager "VortexManager.crpl" "Chunkoffset" GetScriptVar ->Chunkoffset
+ GetTimer0 eq0  if
+	CurrentCoords GetCreeper 0 lt if
+		CurrentCoords GetCreeper abs <-Samount mul ceil 0 do
+			CurrentCoords CurrentCoords 200 0 1 0 0 GetNearestGroundEnemy <-Shealth 0.8 pow <-Spayload CurrentCoords GetCreeper mul 0.7 pow 100 min CreateSpore
+		loop
+		<-Chunkoffset <-Chunkoffset neg do
+			<-Chunkoffset <-Chunkoffset  neg do
+				CurrentX I add CurrentY J add 0 SetCreeper
+			loop
+		loop
+		Self 0 Destroy
+	endif
+	CurrentCoords GetCreeper 0 gt if
+		CurrentCoords GetCreeper abs <-Samount mul ceil 0 do
+			CurrentCoords RandUnitCoords <-Shealth 0.8 pow <-Spayload CurrentCoords GetCreeper mul 0.7 pow 100 min CreateSpore
+		loop
+		<-Chunkoffset <-Chunkoffset neg do
+			<-Chunkoffset <-Chunkoffset  neg do
+				CurrentX I add CurrentY J add 0 SetCreeper
+			loop
+		loop
+		Self 0 Destroy
+	endif
+	CurrentCoords GetCreeper 0 eq if
+		<-Chunkoffset <-Chunkoffset neg do
+			<-Chunkoffset <-Chunkoffset  neg do
+				CurrentX I add CurrentY J add 0 SetCreeper
+			loop
+		loop
+		Self 0 Destroy
+	endif
+ endif
+ 
+
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "" SetImage # TODO
+	Self "main" 0 0 0 0 SetImageColor
+	Self CONST_TAKEMAPSPACE 0 SetUnitAttribute
+	<-Radius <-Strength 1000000 mul <-Strength 1000000 mul <-Angle PI mul 180 div 1 EnableTowerField
+	
+:destroyed
+DisableTowerField

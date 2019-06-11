@@ -1,0 +1,147 @@
+#Chunk manager script. Generates chunks, and is responsible for keeping them up-to-date. Holds the weights for calculating potentials. Sets the ScalingFactor and is mandatory for all the other managers to work. You can use several of those, for making different calculations on chunks, but  it is VERY resource-heavy.
+$ChunkSize:15 #What size should each square chunk be? Use responsibly: the script does not properly handle chunks of size 110 on a 111-sized map for example. 
+$ChunkmMainID:1 #Which main script this hooks into
+$FactorModifier:0.06 #a flat modifier to ScalingFactor, useful for ramping the difficulty.
+$RecheckInterval:15.0 #How often (in seconds) to recalculate potentials. it is a HEAVY operation, do not set too often.
+$TimeWeight:0.005 #Adds that much to scaling factor per second spent.
+#The following block lists the weights of every important unit and a few non-units for this script. The weights, unless otherwise noted are per-unit.
+$ReactorWeight:0.3 
+$CollectorWeight:0.2 
+$RelayWeight:0.1 
+$GuppyWeight:0.1 
+$OreminWeight:0.3 
+$ShieldWeight:0.1
+$EmitterWeight:-0.3 
+$RunnestWeight:-0.1 
+$SporeWeight:-0.1 
+$InhibitorWeight:-0.3 
+$BlasterWeight:0.15 
+$MortarWeight:0.2
+$BerthaWeight:0.7
+$StraferWeight:0.1 
+$BomberWeight:0.1 
+$SprayerWeight:0.15
+$NullifierWeight:1.4
+$SniperWeight:0.2 
+$BeamWeight:0.1 
+$PZWeight:0.5
+$ForgeWeight:0.6 
+$TerrainWeight:0.006 
+$CreeperWeight:-0.25
+$EcPotWeight:0.20
+$MilPotWeight:0.26
+$CreepPotWeight:0.005
+$TerrPotWeight:0.02
+
+once 
+	ClearTraceLog
+	HideTraceLog
+	CreateList ->Chunks
+	<-RecheckInterval 30 mul SetTimer0
+	"MainID" <-ChunkmMainID GetCoresWithVar
+	0 do
+		->MainUID
+	loop
+	<-ChunkSize asfloat ->FloatChunkSize
+	@awake
+	@GenerateChunks
+endonce 
+ 
+GetTimer0 eq0 if
+	@CalculatePriorities
+	<-RecheckInterval 30 mul SetTimer0
+	<-MainUID "ManagerScript.crpl" "ScalingFactor" <-MainUID "ManagerScript.crpl" "ScalerBase" GetScriptVar <-ScalingFactor add 1 max SetScriptVar
+endif
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "" SetImage
+	Self "main" 0 0 0 0 SetImageColor
+	Self CONST_TAKEMAPSPACE  0 SetUnitAttribute
+	
+:GenerateChunks
+MapWidth <-FloatChunkSize div ceil ->Cutoff
+MapHeight <-FloatChunkSize div ceil 0 do 
+	MapWidth <-FloatChunkSize div ceil 0 do
+		<-FloatChunkSize I mul <-FloatChunkSize 2 div 0 round add ->X
+		<-FloatChunkSize J mul <-FloatChunkSize 2 div 0 round add ->Y
+		<-X MapWidth gte if
+			<-FloatChunkSize I mul MapWidth <-FloatChunkSize I mul sub 2 div 0 round add ->X
+		endif
+		<-Y MapHeight gte if
+			<-FloatChunkSize J mul MapHeight <-FloatChunkSize J mul sub 2 div 0 round add ->Y
+		endif
+		"CRPLCORE" <-X <-Y CreateUnit ->CurrChunk
+		<-CurrChunk "Chunk.crpl" AddScriptToUnit
+		<-CurrChunk "Chunk.crpl" "ChunkManager" Self SetScriptVar
+		<-Chunks <-CurrChunk AppendToList #Known issue: this causes overflow chunks (like, if a map is 255 wide and chunks are 10-wide. the last chunk will be squashed) to also capture some neighbor tiles when checking. USe even maps, or live with it.
+	loop
+loop
+@CalculatePriorities
+<-MainUID "ManagerScript.crpl" "ScalingFactor" <-MainUID "ManagerScript.crpl" "ScalerBase" GetScriptVar <-ScalingFactor add 1 max SetScriptVar
+
+:CalculatePriorities
+0 ->ScalingFactor 
+-1 ->PrioChunk
+-1 ->AdjChunk
+-1 ->AdjChunkD
+-1 ->AdjChunkU
+-1 ->AdjChunkL
+-1 ->AdjChunkR
+0 ->BeamTotal
+<-Chunks GetListCount 0 do
+	<-Chunks I GetListElement ->PrioChunk
+	<-PrioChunk "Chunk.crpl" "AdjEconomicPriority" 0 SetScriptVar
+	<-PrioChunk "Chunk.crpl" "AdjMilitaryPriority" 0 SetScriptVar
+	<-PrioChunk "Chunk.crpl" "AdjCreeperPriority" 0 SetScriptVar
+	<-PrioChunk "Chunk.crpl" "AdjTerrainEffect" 0 SetScriptVar
+	<-PrioChunk CONST_COORDX GetUnitAttribute <-PrioChunk CONST_COORDY GetUnitAttribute <-FloatChunkSize 2 div ceil 1  GetAllUnitsInRange
+	0 do
+		->ProcessedUnit
+		<-ProcessedUnit GetUnitType "BEAM" eq if
+			<-BeamTotal 1 add ->BeamTotal
+		endif
+	loop
+loop
+<-Chunks GetListCount 0 do
+
+	0 ->AdjEc
+	0 ->AdjMil
+	0 ->AdjCreep
+	0 ->AdjTerr
+	<-Chunks I GetListElement ->AdjChunk
+	I <-Cutoff 1 add add <-Chunks GetListCount lte if
+		<-Chunks I <-Cutoff add GetListElement ->AdjChunkD
+	else
+		-1 ->AdjChunkD
+	endif
+	I <-Cutoff sub 0 gte if
+		<-Chunks I <-Cutoff sub GetListElement ->AdjChunkU
+	else
+		-1 ->AdjChunkU
+	endif
+	I <-Cutoff mod eq0 if
+		-1 ->AdjChunkL
+	else
+		<-Chunks I 1 sub GetListElement ->AdjChunkL
+	endif
+	I 1 add <-Cutoff mod eq0 if
+		-1 ->AdjChunkR
+	else
+		<-Chunks I 1 add GetListElement ->AdjChunkR
+	endif
+	<-AdjChunkD "Chunk.crpl" "TerrainEffect" GetScriptVar <-AdjChunkL "Chunk.crpl" "TerrainEffect" GetScriptVar <-AdjChunkR "Chunk.crpl" "TerrainEffect" GetScriptVar <-AdjChunkU "Chunk.crpl" "TerrainEffect" GetScriptVar <-AdjChunk "Chunk.crpl" "TerrainEffect" GetScriptVar add add add add ->AdjTerr
+	<-AdjChunkD "Chunk.crpl" "EconomicPriority" GetScriptVar <-AdjChunkL "Chunk.crpl" "EconomicPriority" GetScriptVar <-AdjChunkR "Chunk.crpl" "EconomicPriority" GetScriptVar <-AdjChunkU "Chunk.crpl" "EconomicPriority" GetScriptVar <-AdjChunk "Chunk.crpl" "EconomicPriority" GetScriptVar add add add add ->AdjEc
+	<-AdjChunkD "Chunk.crpl" "MilitaryPriority" GetScriptVar <-AdjChunkL "Chunk.crpl" "MilitaryPriority" GetScriptVar <-AdjChunkR "Chunk.crpl" "MilitaryPriority" GetScriptVar <-AdjChunkU "Chunk.crpl" "MilitaryPriority" GetScriptVar <-AdjChunk "Chunk.crpl" "MilitaryPriority" GetScriptVar add add add add ->AdjMil
+	<-AdjChunkD "Chunk.crpl" "CreeperPriority" GetScriptVar <-AdjChunkL "Chunk.crpl" "CreeperPriority" GetScriptVar <-AdjChunkR "Chunk.crpl" "CreeperPriority" GetScriptVar <-AdjChunkU "Chunk.crpl" "CreeperPriority" GetScriptVar <-AdjChunk "Chunk.crpl" "CreeperPriority" GetScriptVar add add add add ->AdjCreep
+	<-AdjChunk "Chunk.crpl" "AdjEconomicPriority" <-AdjEc SetScriptVar
+	<-AdjChunk "Chunk.crpl" "AdjMilitaryPriority" <-AdjMil SetScriptVar
+	<-AdjChunk "Chunk.crpl" "AdjCreeperPriority" <-AdjCreep SetScriptVar
+	<-AdjChunk "Chunk.crpl" "AdjTerrainEffect" <-AdjTerr SetScriptVar
+	<-ScalingFactor <-AdjEc <-EcPotWeight mul <-AdjMil <-MilPotWeight mul <-AdjCreep <-CreepPotWeight mul <-AdjTerr <-TerrPotWeight mul add add add add ->ScalingFactor
+loop 
+<-ScalingFactor GetGameTimeFrames 30.0 div 0 round <-TimeWeight mul add ->ScalingFactor
+<-ScalingFactor <-FactorModifier mul ->ScalingFactor 

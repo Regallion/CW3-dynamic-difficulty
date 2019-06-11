@@ -1,0 +1,42 @@
+#Disruptor. Basically a time bomb.
+
+once 
+	<-DisruptorManager 0 eq if
+		self 0 destroy 
+		return
+	endif
+	ClearTraceLog
+	HideTraceLog
+	<-Delay 30 mul SetTimer0
+	@awake
+	Self CONST_HEALTH <-Health SetUnitAttribute
+endonce 
+
+GetTimer1 eq0 if
+	15 CurrentCoords CellToPixel -1 1 dup 0.02 60 CreateEffectClipped 
+	60 SetTimer1
+	"Misc25" PlaySound
+endif
+"Will erupt into creeper in " GetTimer0 30.00 div 0 Round " seconds." concat concat SetPopupText
+ 
+ GetTimer0 eq0  if
+	CurrentCoords <-Emissions AddCreeper
+	Self 0 Destroy
+ endif
+ 
+
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self CONST_SNIPERTARGET 1 SetUnitAttribute
+	Self CONST_SNIPERIGNORELOS 0 SetUnitAttribute
+	Self CONST_MAXHEALTH <-Health SetUnitAttribute
+	Self CONST_SHOWHEALTHBAR 1 SetUnitAttribute
+	Self "main" "" SetImage # TODO
+	Self "main" 0 0 0 0 SetImageColor
+	Self CONST_TAKEMAPSPACE 1 SetUnitAttribute
+	Self CONST_DESTROYMODE 1 SetUnitAttribute
+

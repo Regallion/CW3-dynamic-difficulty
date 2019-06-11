@@ -1,0 +1,48 @@
+#Backdoorer script. Acts like a simple emitter  AND spore tower.
+
+
+once 
+	<-BackdoorerManager 0 eq if
+		self 0 destroy 
+		return
+	endif
+	ClearTraceLog
+	HideTraceLog
+	@awake
+endonce 
+GetTimer0 eq0 if
+	CurrentCoords <-Emissions SetCreeperNoLower
+	<-Interval SetTimer0
+endif
+
+GetTimer1 eq0 if
+	<-Samount 0 do
+		CurrentCoords RandUnitCoords <-Shealth <-Spayload CreateSpore
+	loop
+	<-Sinterval 30 mul SetTimer1
+endif
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 1 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "Custom3" SetImage # TODO
+	Self "main" 0 0 -5 SetImagePosition
+	Self CONST_TAKEMAPSPACE 1 SetUnitAttribute
+	"Producing " <-Emissions abs concat " creeper every " concat <-Interval 30.00 div 2 Round 1000 mul concat " milliseconds." concat "
+	 " concat "Spawning " concat <-Samount concat " Spores every " concat <-Sinterval 2 Round 1000 mul concat " milliseconds." concat "
+
+
+	" concat SetPopupText
+	
+:destroyed
+<-Chunk "Chunk.crpl" "Backdoored" 0 SetScriptVar
+<-BackdoorerManager "BackdoorerManager.crpl" "Backdoorers" GetScriptVar
+<-Backdoorers GetListCount 0 do
+	<-Backdoorers I GetListElement Self eq if
+		<-Backdoorers I RemoveListElement
+		break
+	endif
+loop 
+<-BackdoorerManager "BackdoorerManager.crpl" "Backdoorers" <-Backdoorers  SetScriptVar 

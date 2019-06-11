@@ -1,0 +1,17 @@
+once
+1 OperateWhilePaused
+endonce
+0 GetMouseButtonDown if
+	2 3 RandInt
+	Clearstack
+endif
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "" SetImage
+	Self "main" 0 0 0 0 SetImageColor
+	Self CONST_TAKEMAPSPACE  0 SetUnitAttribute
+	

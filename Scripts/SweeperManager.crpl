@@ -1,0 +1,136 @@
+#Sweeper manager. Generates sweepers on cooldown.
+$SweepMMainID:1 #Which main script this hooks into
+$Cost:250.0 #Cost to spawn a sweeper, in points.
+$Weight:1 #If all managers are weight 1, the points are distributed with approx eq chance. Extra weight means this eats more points.
+$SweepHealth:10.0 #How resilient a sweeper is. This is later multiplied by scaling factor
+$SweepFireDelay:60.0 #How many frames between shots. This is later divided by scaling factor. This is inherently capped at 1 frame per shot.
+$SweepSpeed:0.5 #Movement speed. This is later multiplied by scaling factor
+$SweepThresh:2.0 #How militarized a chunk had to be, before sweeping is considered. 
+$BaseAmount:1 #How many chunks are targeted by sweepers.
+$Spacing:3.1 # how many chunks apart must the sweeper targets be. Setting it to less than 2 means sweepers cannot attack the same chunk. 
+$Tutorial:0 #If set to 1, the first round of sweepers will trigger a conversation. 
+
+
+once 
+	1 delay
+	ClearTraceLog
+	HideTraceLog
+	<-Cooldown 30 mul SetTimer0
+	"MainID" <-SweepMMainID GetCoresWithVar
+	0 do
+		->MainUID
+	loop
+	"ChunkmMainID" <-SweepMMainID GetCoresWithVar
+	0 do
+		->ChManUID
+	loop
+	"SpDMainID" <-SweepMMainID GetCoresWithVar
+	0 do
+		->SpDMainID
+	loop
+	<-Weight 0 do
+		<-SpDMainID "SpawnDirector.crpl" "ManagerList" GetScriptVar ->ManagerList
+		<-ManagerList Self AppendToList
+		<-SpDMainID "SpawnDirector.crpl" "ManagerList" <-ManagerList SetScriptVar
+		<-SpDMainID "SpawnDirector.crpl" "ManagerScripts" GetScriptVar ->ManagerScripts
+		<-ManagerScripts "SweeperManager.crpl" AppendToList
+		<-SpDMainID "SpawnDirector.crpl" "ManagerScripts" <-ManagerScripts SetScriptVar
+	loop
+
+	@awake
+	<-Tutorial ->NotTutored
+endonce 
+
+
+0 ->CurrPrio
+<-ChManUID "ChunkManager.crpl" "Chunks" GetScriptVar ->Chunks
+<-MainUID "ManagerScript.crpl" "ScalingFactor" GetScriptVar ->Scale
+<-ChManUID "ChunkManager.crpl" "ChunkSize" GetScriptVar ->ChunkSize
+<-ChunkSize <-Spacing mul ->MinDistance
+ <-PointsBudget <-Cost gte if
+	 <-Chunks GetListCount 0 do
+		<-Chunks I GetListElement "Chunk.crpl" "AdjCreeperPriority" GetScriptVar ->ACurrPrio
+		<-ACurrPrio <-MaxPrio lt if
+			<-Chunks I GetListElement ->SpawnChunk
+			<-ACurrPrio ->MaxPrio
+		endif
+	 loop
+ endif
+ CreateList ->TargetChunks 
+ CreateList ->Prios
+ <-PointsBudget <-Cost gte if
+	0 180 RandInt Delay
+	<-BaseAmount <-PointsBudget <-Cost div floor mul ->SpawnAmt
+	 <-Chunks GetListCount 0 do
+		0 ->ChunkFailed
+		<-Chunks I GetListElement "Chunk.crpl" "AdjMilitaryPriority" GetScriptVar ->CurrPrio
+		<-Chunks I GetListElement CONST_COORDX GetUnitAttribute ->X
+		<-Chunks I GetListElement CONST_COORDY GetUnitAttribute ->Y
+		<-Chunks I GetListElement "Chunk.crpl" "Disabled" GetScriptVar if
+			1 ->ChunkFailed
+		endif
+		<-ChunkFailed not if
+			<-SpawnAmt  0 do
+				<-TargetChunks I GetListElement neq0 if
+					<-TargetChunks I GetListElement CONST_COORDX GetUnitAttribute <-TargetChunks I GetListElement CONST_COORDY GetUnitAttribute <-X <-Y Distance <-MinDistance lte if
+						1 ->ChunkFailed 
+						break
+					endif
+				else
+					break
+				endif
+			loop
+		endif
+		<-ChunkFailed not if
+			<-SpawnAmt  0 do
+				<-CurrPrio <-Prios I GetListElement gt <-CurrPrio <-SweepThresh gte and if
+					<-TargetChunks I <-Chunks J GetListElement InsertListElement
+					<-Prios I <-CurrPrio InsertListElement
+					<-TargetChunks <-SpawnAmt  RemoveListElement
+					<-Prios <-SpawnAmt  RemoveListElement
+					break
+				endif
+			loop
+		endif
+	 loop
+	<-PointsBudget <-Cost <-SpawnAmt mul sub ->PointsBudget
+ endif
+ 
+ <-TargetChunks GetListCount 0 do 
+	<-TargetChunks I GetListElement ->CurrChunk
+	<-SpawnChunk CONST_COORDX GetUnitAttribute ->X
+	<-SpawnChunk CONST_COORDY GetUnitAttribute ->Y
+	"CRPLCORE" <-X <-Y CreateUnit ->CurrSweeper
+	<-CurrSweeper "Sweeper.crpl" AddScriptToUnit
+	<-CurrSweeper "Sweeper.crpl" "SweeperManager" Self SetScriptVar
+	<-CurrSweeper "Sweeper.crpl" "TargetChunk" <-CurrChunk SetScriptVar
+	<-CurrSweeper "Sweeper.crpl" "Health" <-SweepHealth <-Scale 0.7 pow mul ceil SetScriptVar
+	<-CurrSweeper "Sweeper.crpl" "FireDelay" <-SweepFireDelay <-Scale 0.7 pow div ceil SetScriptVar
+	<-CurrSweeper "Sweeper.crpl" "MoveSpeed" <-SweepSpeed <-Scale 0.7 pow mul ceil SetScriptVar
+	once
+	1 ->Triggered
+	90 SetTimer2
+	endonce
+loop
+
+<-Triggered 1 eq <-NotTutored 1 eq GetTimer2 eq0 and and if
+	ClearConversation
+	1 "Undefined fantastic objects approaching!" AddConversationMessage
+	0 "What's so fantastic about them?" AddConversationMessage
+	1 "Well, their devotion to the destruction of our military, for one" AddConversationMessage
+	0 "I fail to see what's so fantastic about that..." AddConversationMessage
+	1 "Use sniper fire. Do not worry about elevation - they are flying after all" AddConversationMessage
+	ShowConversation
+	0 ->NotTutored
+	PauseGame
+endif
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "" SetImage
+	Self "main" 0 0 0 0 SetImageColor
+	Self CONST_TAKEMAPSPACE  0 SetUnitAttribute
+	

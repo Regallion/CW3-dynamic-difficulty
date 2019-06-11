@@ -1,0 +1,168 @@
+#Chunk script. Chunks do nothing at all, other than store a buncha properties. Chunks self-destruct on recompile.
+
+once 
+	<-ChunkManager 0 eq if
+		self 0 destroy 
+		return
+	endif
+	CurrentCoords GetTerrain -1 eq if
+		1 ->Disabled
+		return
+	endif
+	@awake
+
+<-ChunkManager "ChunkManager.crpl" "RecheckInterval" GetScriptVar ->RecheckInterval
+<-ChunkManager "ChunkManager.crpl" "ChunkSize" GetScriptVar ->ChunkSize
+<-ChunkManager "ChunkManager.crpl" "ReactorWeight" GetScriptVar ->ReactorWeight
+<-ChunkManager "ChunkManager.crpl" "CollectorWeight" GetScriptVar ->CollectorWeight
+<-ChunkManager "ChunkManager.crpl" "RelayWeight" GetScriptVar ->RelayWeight
+<-ChunkManager "ChunkManager.crpl" "GuppyWeight" GetScriptVar ->GuppyWeight
+<-ChunkManager "ChunkManager.crpl" "OreminWeight" GetScriptVar ->OreminWeight
+<-ChunkManager "ChunkManager.crpl" "ShieldWeight" GetScriptVar ->ShieldWeight
+<-ChunkManager "ChunkManager.crpl" "EmitterWeight" GetScriptVar ->EmitterWeight
+<-ChunkManager "ChunkManager.crpl" "RunnestWeight" GetScriptVar ->RunnestWeight
+<-ChunkManager "ChunkManager.crpl" "SporeWeight" GetScriptVar ->SporeWeight
+<-ChunkManager "ChunkManager.crpl" "InhibitorWeight" GetScriptVar ->InhibitorWeight
+<-ChunkManager "ChunkManager.crpl" "BlasterWeight" GetScriptVar ->BlasterWeight
+<-ChunkManager "ChunkManager.crpl" "MortarWeight" GetScriptVar ->MortarWeight
+<-ChunkManager "ChunkManager.crpl" "BerthaWeight" GetScriptVar ->BerthaWeight
+<-ChunkManager "ChunkManager.crpl" "StraferWeight" GetScriptVar ->StraferWeight
+<-ChunkManager "ChunkManager.crpl" "BomberWeight" GetScriptVar ->BomberWeight
+<-ChunkManager "ChunkManager.crpl" "SprayerWeight" GetScriptVar ->SprayerWeight
+<-ChunkManager "ChunkManager.crpl" "NullifierWeight" GetScriptVar ->NullifierWeight
+<-ChunkManager "ChunkManager.crpl" "SniperWeight" GetScriptVar ->SniperWeight
+<-ChunkManager "ChunkManager.crpl" "BeamWeight" GetScriptVar ->BeamWeight
+<-ChunkManager "ChunkManager.crpl" "PZWeight" GetScriptVar ->PZWeight
+<-ChunkManager "ChunkManager.crpl" "ForgeWeight" GetScriptVar ->ForgeWeight
+<-ChunkManager "ChunkManager.crpl" "TerrainWeight" GetScriptVar ->TerrainWeight
+<-ChunkManager "ChunkManager.crpl" "CreeperWeight" GetScriptVar ->CreeperWeight
+ClearTraceLog
+HideTraceLog
+endonce 
+
+GetTimer0 eq0 <-Disabled not and if
+	0 ->EconomicPriority
+	0 ->MilitaryPriority
+	0 ->CreeperPriority
+	0 ->TerrainEffect
+	0 ->CommunicationsPriority
+	0 ->PrioCreepMax
+	CurrentCoords <-ChunkSize 2.0 div ceil 1  GetAllUnitsInRange
+	0 do
+		->ProcessedUnit
+		<-ProcessedUnit GetUnitType "COLLECTOR" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-EconomicPriority <-CollectorWeight add ->EconomicPriority
+			<-CommunicationsPriority <-CollectorWeight add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "REACTOR" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-EconomicPriority <-ReactorWeight add ->EconomicPriority
+		endif
+		<-ProcessedUnit GetUnitType "RELAY" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-EconomicPriority <-RelayWeight add ->EconomicPriority
+			<-CommunicationsPriority <-RelayWeight add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "GUPPY" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-CommunicationsPriority <-GuppyWeight add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "OREMINE" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-EconomicPriority <-OreminWeight add ->EconomicPriority
+		endif
+		<-ProcessedUnit GetUnitType "EMITTER" eq  if
+			<-CreeperPriority <-EmitterWeight add ->CreeperPriority
+		endif
+		<-ProcessedUnit GetUnitType "SPORETOWER" eq if
+			<-CreeperPriority <-SporeWeight add ->CreeperPriority
+		endif
+		<-ProcessedUnit GetUnitType "RUNNERNEST" eq if
+			<-CreeperPriority <-RunnestWeight add ->CreeperPriority
+		endif
+		<-ProcessedUnit GetUnitType "INHIBITOR" eq if
+			<-CreeperPriority <-InhibitorWeight add ->CreeperPriority
+		endif
+		<-ProcessedUnit GetUnitType "PULSECANNON" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-MilitaryPriority <-BlasterWeight add ->MilitaryPriority
+			<-EconomicPriority <-BlasterWeight neg add ->EconomicPriority
+			<-CommunicationsPriority <-BlasterWeight neg add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "MORTAR" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-MilitaryPriority <-MortarWeight add ->MilitaryPriority
+			<-EconomicPriority <-MortarWeight neg add ->EconomicPriority
+			<-CommunicationsPriority <-MortarWeight neg add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "BERTHA" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-MilitaryPriority <-BerthaWeight add ->MilitaryPriority
+			<-EconomicPriority <-BerthaWeight neg add ->EconomicPriority
+			<-CommunicationsPriority <-BerthaWeight neg add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "STRAFER" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-MilitaryPriority <-StraferWeight add ->MilitaryPriority
+			<-EconomicPriority <-StraferWeight neg add ->EconomicPriority
+			<-CommunicationsPriority <-StraferWeight neg add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "BOMBER" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-MilitaryPriority <-BomberWeight add ->MilitaryPriority
+			<-EconomicPriority <-BomberWeight neg add ->EconomicPriority
+			<-CommunicationsPriority <-BomberWeight neg add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "SPRAYER" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-MilitaryPriority <-SprayerWeight add ->MilitaryPriority
+			<-EconomicPriority <-SprayerWeight neg add ->EconomicPriority
+			<-CommunicationsPriority <-SprayerWeight neg add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "SHIELD" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-MilitaryPriority <-ShieldWeight add ->MilitaryPriority
+			<-EconomicPriority <-ShieldWeight neg add ->EconomicPriority
+			<-CommunicationsPriority <-ShieldWeight neg add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "NULLIFIER" eq  if
+			<-MilitaryPriority <-NullifierWeight add ->MilitaryPriority
+			<-EconomicPriority <-NullifierWeight neg add ->EconomicPriority
+			<-CommunicationsPriority <-NullifierWeight neg add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "SNIPER" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-MilitaryPriority <-SniperWeight add ->MilitaryPriority
+			<-EconomicPriority <-SniperWeight neg add ->EconomicPriority
+			<-CommunicationsPriority <-SniperWeight neg add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "BEAM" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-MilitaryPriority <-BeamWeight add ->MilitaryPriority
+			<-EconomicPriority <-BeamWeight neg add ->EconomicPriority
+			<-CommunicationsPriority <-BeamWeight neg add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "POWERZONE" eq if
+			<-MilitaryPriority <-PZWeight add ->MilitaryPriority
+			<-EconomicPriority <-PZWeight add ->EconomicPriority
+			<-CommunicationsPriority <-PZWeight add ->CommunicationsPriority
+		endif
+		<-ProcessedUnit GetUnitType "FORGE" eq <-ProcessedUnit CONST_ISBUILDING GetUnitAttribute eq0 and if
+			<-EconomicPriority <-ForgeWeight add ->EconomicPriority
+		endif
+	loop
+	<-EconomicPriority 0 max ->EconomicPriority
+	<-CommunicationsPriority 0 max ->CommunicationsPriority
+	<-ChunkSize 2 div <-ChunkSize 2 div neg do
+		<-ChunkSize 2 div <-ChunkSize 2 div neg do
+			CurrentX I add CurrentY J add GetTerrain ->PrioTerrHeight
+			<-PrioTerrHeight -1 gt if
+				<-PrioTerrHeight 5 sub ->PrioTerrHeight
+				CurrentX I add CurrentY J add GetCreeper ->RunningCreep
+			else
+				0 ->PrioTerrHeight
+			endif
+			<-RunningCreep <-PrioCreepMax max ->PrioCreepMax
+			<-TerrainEffect <-PrioTerrHeight <-TerrainWeight mul add ->TerrainEffect
+		loop
+	loop
+	<-CreeperPriority <-PrioCreepMax <-CreeperWeight mul add ->CreeperPriority
+	<-RecheckInterval -2 4 RandInt add 30 -1 2 RandInt add mul SetTimer0
+endif
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self CONST_TAKEMAPSPACE  0 SetUnitAttribute
+	Self "main" "" SetImage
+	Self "main" 0 0 0 0 SetImageColor
+	

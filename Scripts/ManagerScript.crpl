@@ -1,0 +1,32 @@
+#Main script which other managers of Dynamic Difficulty hook up to. Holds the value of the ScalingFactor
+$ScalerBase:0.0 #Base ScalingFactor, additive with calculated one.
+$MainID:1 #if you want to use multiple scaling factors for SOME reason, use this value to create separate scaling calculators.
+$Opener:0 #delivers an opener if you want to. Replaces OpeningText just in case.
+once 
+	@awake
+endonce 
+	<-ScalingFactor SetText
+	
+	<-Opener 1 eq if
+	ClearConversation
+	2 "SKARSGARD ABRAXIS!" AddConversationMessage
+	0 "Oh, it's you again." AddConversationMessage
+	2 "YOU HAVE  FOUGHT US LONG ENOUGH. TODAY YOU DIE!" AddConversationMessage
+	0 "Lia, close communications." AddConversationMessage
+	1 "Skars, the creeper on this world is...unusual. Even after the bombardment it has improvised, adapted." AddConversationMessage
+	0 "Well, it won't overcome us." AddConversationMessage
+	1 "Keep an open mind. This will not be an easy battle." AddConversationMessage
+	ShowConversation
+	0 ->Opener
+	PauseGame
+endif
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self CONST_TAKEMAPSPACE  0 SetUnitAttribute
+	Self "main" "" SetImage
+	Self "main" 0 0 0 0 SetImageColor
+	1 OperateWhilePaused

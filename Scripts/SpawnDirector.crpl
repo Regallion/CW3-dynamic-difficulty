@@ -1,0 +1,56 @@
+$RebudgetingCooldown:1800 #How often to add points to managers in frames.
+$ScaleToPoints:150 #How many points to add per unit of scale
+$SpDMainID:1
+once 
+	CreateList ->ManagerList
+	CreateList ->ManagerScripts
+	ClearTraceLog
+	HideTraceLog
+	"MainID" <-SpDMainID GetCoresWithVar
+	0 do
+		->MainUID
+	loop
+	@awake
+	ClearStack
+	15 Delay
+	<-RebudgetingCooldown SetTimer0
+endonce 
+GetTimer0 1 eq if
+	@CreateDistribution
+	CreateList ->ManagerPoints
+	<-MainUID "ManagerScript.crpl" "ScalingFactor" GetScriptVar ->Scale
+	<-Scale <-ScaleToPoints mul ->PointsRunning
+	<-ManagerList GetListCount 0 do
+		<-ManagerPoints <-Numbers I GetListElement <-PointsRunning mul AppendToList
+	loop
+	<-ManagerList GetListCount 0 do
+		<-ManagerList I GetListElement <-ManagerScripts I GetListElement "PointsBudget" GetScriptVar ->CurrBudg
+		<-ManagerList I GetListElement <-ManagerScripts I GetListElement "PointsBudget" <-CurrBudg <-ManagerPoints I GetListElement add SetScriptVar
+	loop
+	<-RebudgetingCooldown 1 <-Scale 2 log 0.1 mul sub 0.5 max mul ceil  SetTimer0
+endif
+
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "" SetImage
+	Self "main" 0 0 0 0 SetImageColor
+	Self CONST_TAKEMAPSPACE  0 SetUnitAttribute
+:CreateDistribution
+CreateList ->Numbers
+<-ManagerList GetListCount 0 do
+	RandFloat 0.0001 max ln neg ->Number
+	<-Numbers <-Number AppendToList
+loop
+0
+<-Numbers GetListCount 0 do
+	<-Numbers I GetListElement add
+loop
+->NumSum
+<-Numbers GetListCount 0 do
+	<-Numbers I <-Numbers I GetListElement <-NumSum div SetListElement
+loop
+	

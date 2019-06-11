@@ -1,0 +1,46 @@
+#Harasser script. Acts like a simple emitter.
+
+
+once 
+	<-HarasserManager 0 eq if
+		self 0 destroy 
+		return
+	endif
+	ClearTraceLog
+	HideTraceLog
+	<-DelayTimer 30 mul 45 mul SetTimer1
+	@awake
+endonce 
+GetTimer1 eq0 if
+	GetTimer0 eq0 if
+		CurrentCoords <-Emissions SetCreeperNoLower
+		"Producing " <-Emissions abs concat " creeper every " concat <-Interval 30.00 div 2 Round 1000 mul concat " milliseconds." concat "
+
+
+		" concat SetPopupText
+		<-Interval SetTimer0
+	endif
+else
+	"Will awaken in " GetTimer1 30 div " seconds." concat concat SetPopupText
+endif
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 1 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "Custom2" SetImage 
+	Self "main" 0 0 -5 SetImagePosition
+	Self CONST_TAKEMAPSPACE 1 SetUnitAttribute
+	
+	
+:destroyed
+<-Chunk "Chunk.crpl" "Harassed" 0 SetScriptVar
+<-HarasserManager "HarasserManager.crpl" "Harassers" GetScriptVar ->Harassers
+<-Harassers GetListCount 0 do
+		<-Harassers I GetListElement Self eq if
+			<-Harassers I RemoveListElement
+			break
+		endif
+loop 
+<-HarasserManager "HarasserManager.crpl" "Harassers" <-Harassers GetScriptVar 

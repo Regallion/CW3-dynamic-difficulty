@@ -1,0 +1,134 @@
+#Maintains and adjusts enemies
+$EnemMMainID:1 #ID for main manager.
+$RecheckInterval:10 #how often to re-do the stats, in seconds. Do not set too high or too low.
+$Tutorial:0 #If set to 1, the first time the enemies actually get adjusted,  a conversation will be shown.
+
+once 
+	900 Delay
+	ClearTraceLog
+	HideTraceLog
+	"MainID" <-EnemMMainID GetCoresWithVar
+	0 do
+		->MainUID
+	loop
+	"ChunkmMainID" <-EnemMMainID GetCoresWithVar
+	0 do
+		->ChManUID
+	loop
+	CreateList ->Emitters
+	CreateList ->EmittersEmissions
+	CreateList ->EmittersIntervals
+	CreateList ->Spores
+	CreateList ->SporesCount
+	CreateList ->SporesInterval
+	CreateList ->SporesPayload
+	@awake
+	<-RecheckInterval 30 mul SetTimer0
+	<-Tutorial ->NotTutored
+endonce 
+0 ->ProcessedUnit
+once
+	CurrentX CurrentY 300 1 GetAllUnitsInRange
+	0 do
+		->ProcessedUnit
+		<-ProcessedUnit GetUnitType "EMITTER" eq if
+			<-Emitters <-ProcessedUnit AppendToList
+			<-EmittersEmissions <-ProcessedUnit 0 "PRODUCTIONAMT" GetScriptVar AppendToList
+			<-EmittersIntervals <-ProcessedUnit 0 "PRODUCTIONINTERVAL" GetScriptVar AppendToList
+		endif
+		<-ProcessedUnit GetUnitType "SPORETOWER" eq if
+			<-Spores <-ProcessedUnit AppendToList
+			<-SporesCount <-ProcessedUnit 0 "WAVECOUNT" GetScriptVar AppendToList
+			<-SporesPayload <-ProcessedUnit 0 "SPOREPAYLOAD" GetScriptVar AppendToList
+			<-SporesInterval <-ProcessedUnit 0 "WAVEINTERVAL" GetScriptVar AppendToList
+		endif
+		<-ProcessedUnit GetUnitType "INHIBITOR" eq if
+			<-Emitters <-ProcessedUnit AppendToList
+			<-EmittersEmissions <-ProcessedUnit 0 "PRODUCTIONAMT" GetScriptVar AppendToList
+			<-EmittersIntervals <-ProcessedUnit 0 "PRODUCTIONINTERVAL" GetScriptVar AppendToList
+		endif
+	loop
+endonce
+0 ->ProcessedUnit
+<-MainUID "ManagerScript.crpl" "ScalingFactor" GetScriptVar ->Scale
+<-ChManUID "ChunkManager.crpl" "BeamTotal" GetScriptVar 7 div 0 round ->BeamMod
+
+GetTimer0 eq0 if	
+0 ->Empow
+0 ->Spcount
+0 ->Sppay
+	<-Emitters GetListCount ->Live
+	<-Emitters GetListCount 0 do
+		<-Emitters I GetListElement CONST_ISDESTROYED GetUnitAttribute 1 eq if
+			<-Empow <-EmittersEmissions I GetListElement <-EmittersIntervals I GetListElement asfloat div add ->Empow
+			<-Live 1 sub ->Live
+		endif
+	loop
+
+	<-Live 1 gt if
+		<-Empow <-Live div 1.5 div ->Cpow
+	else
+		<-Empow 1.5 div ->Cpow
+	endif
+	<-Spores GetListCount ->LiveSpores
+	<-Spores GetListCount 0 do
+		<-Spores I GetListElement CONST_ISDESTROYED GetUnitAttribute 1 eq if
+			<-Spcount <-SporesCount I GetListElement <-SporesInterval I GetListElement asfloat div add ->Spcount
+			<-Sppay <-SporesPayload I GetListElement add ->Sppay
+			<-LiveSpores 1 sub ->LiveSpores
+		endif
+	loop
+	<-LiveSpores 1 gt if
+		<-Spcount <-LiveSpores div 1.5 div ->Cspcount
+		<-Sppay <-LiveSpores div 1.5 div ->Csppay
+	else
+		<-Spcount 1.5 div ->Cspcount
+		<-Sppay 1.5 div ->Csppay
+	endif
+
+<-Emitters GetListCount 0 do
+	<-Emitters I GetListElement CONST_ISDESTROYED GetUnitAttribute eq0 if
+		<-Emitters I GetListElement ->AdjustedEmitter
+		12 <-AdjustedEmitter CONST_COORDX GetUnitAttribute <-AdjustedEmitter CONST_COORDY GetUnitAttribute CellToPixel -1 0.5 dup 0.02 60 CreateEffectClipped 
+		<-EmittersEmissions I GetListElement <-Cpow <-EmittersIntervals I GetListElement mul add <-Scale 0.5 pow mul 0 round 2000000000 min ->AdjustedEmissions
+		<-AdjustedEmitter 0 "PRODUCTIONAMT" <-AdjustedEmissions SetScriptVar
+	endif
+loop
+<-Spores GetListCount 0 do
+	<-Spores I GetListElement CONST_ISDESTROYED GetUnitAttribute eq0 if
+		<-Spores I GetListElement ->AdjustedSpore
+		12 <-AdjustedSpore CONST_COORDX GetUnitAttribute <-AdjustedSpore CONST_COORDY GetUnitAttribute CellToPixel -1 0.5 dup 0.02 60 CreateEffectClipped 
+		<-SporesCount I GetListElement  <-Cspcount <-SporesInterval I GetListElement mul add <-Scale 0.5 pow mul <-BeamMod add 0 round ->AdjustedCount
+		<-SporesPayload I GetListElement <-Csppay add <-Scale 0.7 pow mul 1000000000 min 0 round ->AdjustedPayload
+		<-SporesInterval I GetListElement <-Scale 0.4 pow asfloat div 0 round ->AdjustedInterval
+		<-AdjustedSpore 0 "WAVECOUNT" <-AdjustedCount SetScriptVar
+		<-AdjustedSpore 0 "SPOREPAYLOAD" <-AdjustedPayload SetScriptVar
+		<-AdjustedSpore 0 "WAVEINTERVAL" <-AdjustedInterval SetScriptVar
+	endif
+loop
+	once
+	1 ->Triggered
+	90 SetTimer2
+	endonce
+<-RecheckInterval 30 mul SetTimer0
+endif
+
+<-Triggered 1 eq <-NotTutored 1 eq GetTimer2 eq0 and and if
+	ClearConversation
+	0 "Did that emitter just... shift?" AddConversationMessage
+	1 "Skars, it appears the enemy units on this world are adjusting to our presence. We should make sure to check their power regularily" AddConversationMessage
+	0 "This is gonna be a big problem isn't it." AddConversationMessage
+	ShowConversation
+	0 ->NotTutored
+	PauseGame
+endif
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "" SetImage
+	Self "main" 0 0 0 0 SetImageColor
+	Self CONST_TAKEMAPSPACE  0 SetUnitAttribute
+	

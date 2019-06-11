@@ -1,0 +1,163 @@
+#Backdoorer manager script. Generates Backdoorer portals on cooldown. 
+$BackMMainID:1 #Which main script this hooks into
+$Cost:300.0 #Cost to spawn a backdoorer, in points.
+$Weight:1 #If all managers are weight 1, the points are distributed with approx eq chance. Extra weight means this eats more points.
+$Backdoorer2cooldown:720.0 #How much tiime to wait if Backdoorer is already present. Prevents Backdoorers from being ignored, while not too overwhelming. This is later divided by scaling factor
+$BackdoorerBloom:5.0 #How much time (in multiples of 45 seconds!) it takes for Backdoorer portal to become a Backdoorer. This is later divided by scaling factor.
+$BackdoorerEmissions:10.0 #How much will Backdoorers emit? equivalent to a basic emitter setting. This is later multiplied by scaling factor.
+$BackdoorerInterval:60 #ditto, but for emission speed. THIS one is measured in frames!
+$BackdoorerAmt:1 # how many backdoorers to spawn per spawning cycle. 
+$SporeHealth:1 #Base health of spawned spores. This is later multiiplied by scaling factor.
+$SporePayload:5 #Base payload of spawned spores. This is later multiplied by scaling factor.
+$SporeAmount:1 #How many spores to spawn. This is later modified by half the scaling factor.
+$SporeInterval:30.0 #How often (in seconds) to spawn spores. This is later divided by scaling factor so set it reasonably high
+$Spacing:3.1 # how many chunks apart must the backdoorer targets be. Setting it to less than 2 means backdoorers cannot attack the same chunk. 
+$Tutorial:0 #If set to 1, the first spawned backdoorer portal will trigger a conversation. 
+
+once 
+	1 delay
+	ClearTraceLog
+	HideTraceLog
+	CreateList ->Backdoorers
+	<-Cooldown 30 mul SetTimer0
+	"MainID" <-BackMMainID GetCoresWithVar
+	0 do
+		->MainUID
+	loop
+	"ChunkmMainID" <-BackMMainID GetCoresWithVar
+	0 do
+		->ChManUID
+	loop
+	"SpDMainID" <-BackMMainID GetCoresWithVar
+	0 do
+		->SpDMainID
+	loop
+	<-Weight 0 do
+		<-SpDMainID "SpawnDirector.crpl" "ManagerList" GetScriptVar ->ManagerList
+		<-ManagerList Self AppendToList
+		<-SpDMainID "SpawnDirector.crpl" "ManagerList" <-ManagerList SetScriptVar
+		<-SpDMainID "SpawnDirector.crpl" "ManagerScripts" GetScriptVar ->ManagerScripts
+		<-ManagerScripts "BackdoorerManager.crpl" AppendToList
+		<-SpDMainID "SpawnDirector.crpl" "ManagerScripts" <-ManagerScripts SetScriptVar
+	loop
+
+	@awake
+	<-Tutorial ->NotTutored
+endonce 
+
+-1 ->CurrChunk
+1000 ->MinPrio
+0 ->CurrPortal
+0 ->CurrBackdoored
+0 ->CurrHarassed
+0 ->CurrCreep
+ <-ChManUID "ChunkManager.crpl" "Chunks" GetScriptVar ->Chunks
+ <-MainUID "ManagerScript.crpl" "ScalingFactor" GetScriptVar ->Scale
+<-ChManUID "ChunkManager.crpl" "ChunkSize" GetScriptVar ->ChunkSize
+<-ChunkSize <-Spacing mul ->MinDistance
+<-ChunkSize 2 div ceil ->Chunkoffset
+ 
+ <-Backdoorers GetListCount 0 gt if
+	<-Backdoorers GetListCount 0 do
+		<-Backdoorers I GetListElement "BackdoorerPortal.crpl" "Chunk" GetScriptVar ->Chunk
+		<-Chunk "Chunk.crpl" "Backdoored" 1 SetScriptVar
+		<-Backdoorers I GetListElement "Backdoorer.crpl" "Chunk" GetScriptVar ->Chunk
+		<-Chunk "Chunk.crpl" "Backdoored" 1 SetScriptVar
+	loop
+endif
+
+ CreateList ->TargetChunks 
+ CreateList ->Prios
+ <-PointsBudget <-Cost gte if
+	0 180 RandInt Delay
+	<-BackdoorerAmt <-PointsBudget <-Cost div floor mul ->SpawnAmt
+	 <-Chunks GetListCount 0 do
+		0 ->ChunkFailed
+		<-Chunks I GetListElement "Chunk.crpl" "AdjMilitaryPriority" GetScriptVar ->CurrPrio
+		<-Chunks I GetListElement "Chunk.crpl" "AdjCreeperPriority" GetScriptVar ->CurrCreep
+		<-Chunks I GetListElement "Chunk.crpl" "Backdoored" GetScriptVar ->CurrBackdoored
+		<-Chunks I GetListElement "Chunk.crpl" "Harassed" GetScriptVar ->CurrHarassed
+		<-Chunks I GetListElement CONST_COORDX GetUnitAttribute ->X
+		<-Chunks I GetListElement CONST_COORDY GetUnitAttribute ->Y
+		<-Chunks I GetListElement "Chunk.crpl" "Disabled" GetScriptVar if
+			1 ->ChunkFailed
+		endif
+		<-ChunkFailed not if
+			<-SpawnAmt  0 do
+				<-TargetChunks I GetListElement neq0 if
+					<-TargetChunks I GetListElement CONST_COORDX GetUnitAttribute <-TargetChunks I GetListElement CONST_COORDY GetUnitAttribute <-X <-Y Distance <-MinDistance lte if
+						1 ->ChunkFailed 
+						break
+					endif
+				else
+				break
+				endif
+			loop
+		endif
+		<-ChunkFailed not if
+			<-SpawnAmt  0 do
+				<-Prios I GetListElement eq0 if
+					1000 ->PrioComp
+				else
+					<-Prios I GetListElement ->PrioComp
+				endif
+				 <-CurrPrio <-PrioComp lt  <-CurrBackdoored eq0 <-CurrHarassed eq0 <-CurrCreep -1 gt and and and if
+					<-TargetChunks I <-Chunks J GetListElement InsertListElement
+					<-Prios I <-CurrPrio InsertListElement
+					<-TargetChunks <-SpawnAmt  RemoveListElement
+					<-Prios <-SpawnAmt  RemoveListElement
+					break
+				endif
+			loop
+		endif
+	 loop
+	<-PointsBudget <-Cost <-SpawnAmt mul sub ->PointsBudget
+ endif
+ 
+ <-TargetChunks GetListCount 0 do 
+	<-TargetChunks I GetListElement ->CurrChunk
+	<-CurrChunk CONST_COORDX GetUnitAttribute <-Chunkoffset neg <-Chunkoffset 1 add RandInt add 1 max MapWidth 1 sub min ->X
+	<-CurrChunk CONST_COORDY GetUnitAttribute <-Chunkoffset neg <-Chunkoffset 1 add RandInt add 1 max MapHeight 1 sub min ->Y
+	"CRPLCORE" <-X <-Y CreateUnit ->CurrPortal
+	"Retro10" PlaySound
+	<-CurrPortal "BackdoorerPortal.crpl" AddScriptToUnit
+	<-CurrPortal "BackdoorerPortal.crpl" "BackdoorerManager" Self SetScriptVar
+	<-CurrPortal "BackdoorerPortal.crpl" "Chunk" <-CurrChunk SetScriptVar
+	<-CurrPortal "BackdoorerPortal.crpl" "BloomTimer" <-BackdoorerBloom <-Scale div ceil SetScriptVar
+	<-CurrPortal "BackdoorerPortal.crpl" "Emissions" <-BackdoorerEmissions <-Scale mul ceil SetScriptVar
+	<-CurrPortal "BackdoorerPortal.crpl" "Interval" <-BackdoorerInterval <-Scale div 0 round SetScriptVar
+	<-CurrPortal "BackdoorerPortal.crpl" "Shealth" <-SporeHealth <-Scale mul ceil SetScriptVar
+	<-CurrPortal "BackdoorerPortal.crpl" "Spayload" <-SporePayload <-Scale mul ceil 10000000 min SetScriptVar
+	<-CurrPortal "BackdoorerPortal.crpl" "Samount" <-SporeAmount <-Scale mul ceil SetScriptVar
+	<-CurrPortal "BackdoorerPortal.crpl" "Sinterval" <-SporeInterval <-Scale div 0 round SetScriptVar
+	<-Backdoorers <-CurrPortal AppendToList
+	once
+	1 ->Triggered
+	90 SetTimer2
+	endonce
+loop
+
+<-Triggered 1 eq <-NotTutored 1 eq GetTimer2 eq0 and and if
+	ClearConversation
+	1 "Dimensional portal detected." AddConversationMessage
+	0 "Again?" AddConversationMessage
+	1 "This one appears to deliberately spawn away from our weapons." AddConversationMessage
+	0 "So we have no reason to worry" AddConversationMessage
+	1 "Whatever is coming through it is providing a confusing energy signature. I do not recommend letting it arrive." AddConversationMessage
+	0 "Nulliifier, no power zone?" AddConversationMessage
+	1 "Correct." AddConversationMessage
+	ShowConversation
+	0 ->NotTutored
+	PauseGame
+endif
+
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "" SetImage
+	Self "main" 0 0 0 0 SetImageColor
+	Self CONST_TAKEMAPSPACE  0 SetUnitAttribute
+	

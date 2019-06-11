@@ -1,0 +1,132 @@
+#Disruptor manager. Generates disruptors on cooldown.
+$DisMMainID:1 #Which main script this hooks into
+$Cost:150.0 #Cost to spawn a disruptors in a chunk, in points.
+$Weight:1 #If all managers are weight 1, the points are distributed with approx eq chance. Extra weight means this eats more points.
+$BaseCells:1 #How many chunks this affects baseline. 
+$DisHealth:10.0 #How resilient a disruptor is. This is later multiplied by scaling factor
+$DisEmissions:5.0 #How much creeper the disruptor releases. This is later multiplied by scaling factor
+$DisDelay:120.0 #How long before the disruptor explodes. This is later divided by scaling factor
+$Spacing:3.1 # how many chunks apart must the disruptor targets be. Setting it to less than 2 means disruptors cannot attack the same chunk. 
+$Tutorial:0 #If set to 1, the first round of disruptors will trigger a conversation. 
+
+once 
+	1 delay
+	ClearTraceLog
+	HideTraceLog
+	<-Cooldown 30 mul SetTimer0
+	"MainID" <-DisMMainID GetCoresWithVar
+	0 do
+		->MainUID
+	loop
+	"ChunkmMainID" <-DisMMainID GetCoresWithVar
+	0 do
+		->ChManUID
+	loop
+	"SpDMainID" <-DisMMainID GetCoresWithVar
+	0 do
+		->SpDMainID
+	loop
+	<-Weight 0 do
+		<-SpDMainID "SpawnDirector.crpl" "ManagerList" GetScriptVar ->ManagerList
+		<-ManagerList Self AppendToList
+		<-SpDMainID "SpawnDirector.crpl" "ManagerList" <-ManagerList SetScriptVar
+		<-SpDMainID "SpawnDirector.crpl" "ManagerScripts" GetScriptVar ->ManagerScripts
+		<-ManagerScripts "DisruptorManager.crpl" AppendToList
+		<-SpDMainID "SpawnDirector.crpl" "ManagerScripts" <-ManagerScripts SetScriptVar
+	loop
+
+	@awake
+	<-Tutorial ->NotTutored
+endonce 
+
+
+0 ->CurrPrio
+ <-ChManUID "ChunkManager.crpl" "Chunks" GetScriptVar ->Chunks
+ <-MainUID "ManagerScript.crpl" "ScalingFactor" GetScriptVar ->Scale
+ <-ChManUID "ChunkManager.crpl" "ChunkSize" GetScriptVar ->ChunkSize
+<-ChunkSize <-Spacing mul ->MinDistance
+<-ChunkSize 2 div ceil ->Chunkoffset
+ CreateList ->TargetChunks 
+ CreateList ->Prios
+ <-PointsBudget <-Cost gte if
+	0 180 RandInt Delay
+	<-BaseCells <-PointsBudget <-Cost div floor mul ->SpawnAmt
+	 <-Chunks GetListCount 0 do
+		0 ->ChunkFailed
+		<-Chunks I GetListElement "Chunk.crpl" "CommunicationsPriority" GetScriptVar ->CurrPrio
+		<-Chunks I GetListElement CONST_COORDX GetUnitAttribute ->X
+		<-Chunks I GetListElement CONST_COORDY GetUnitAttribute ->Y
+		<-Chunks I GetListElement "Chunk.crpl" "Disabled" GetScriptVar if
+			1 ->ChunkFailed
+		endif
+		<-ChunkFailed not if
+			<-SpawnAmt 0 do
+				<-TargetChunks I GetListElement neq0 if
+					<-TargetChunks I GetListElement CONST_COORDX GetUnitAttribute <-TargetChunks I GetListElement CONST_COORDY GetUnitAttribute <-X <-Y Distance <-MinDistance lte if
+						1 ->ChunkFailed 
+						break
+					endif
+				else
+				break
+				endif
+			loop
+		endif
+		<-ChunkFailed not if
+			<-SpawnAmt 0 do
+				 <-CurrPrio <-Prios I GetListElement gt if
+					<-TargetChunks I <-Chunks J GetListElement InsertListElement
+					<-Prios I <-CurrPrio InsertListElement
+					<-TargetChunks <-SpawnAmt RemoveListElement
+					<-Prios <-SpawnAmt RemoveListElement
+					break
+				endif
+			loop
+		endif
+	 loop
+	<-PointsBudget <-Cost <-SpawnAmt mul sub ->PointsBudget
+ endif
+ 
+ <-TargetChunks GetListCount 0 do 
+	<-TargetChunks I GetListElement ->CurrChunk
+	<-CurrChunk CONST_COORDX GetUnitAttribute ->X
+	<-CurrChunk CONST_COORDY GetUnitAttribute ->Y
+	<-X <-Y <-Chunkoffset 1 GetAllUnitsInRange
+	0 do
+		->ProcessedUnit
+		<-ProcessedUnit GetUnitType "RELAY" eq <-ProcessedUnit GetUnitType "COLLECTOR" eq <-ProcessedUnit GetUnitType "GUPPY" eq or or if
+			"CRPLCORE" <-ProcessedUnit CONST_COORDX GetUnitAttribute <-ProcessedUnit CONST_COORDY GetUnitAttribute CreateUnit ->CurrDisruption
+			<-CurrDisruption "Disruptor.crpl" AddScriptToUnit
+			<-CurrDisruption "Disruptor.crpl" "DisruptorManager" Self SetScriptVar
+			<-CurrDisruption "Disruptor.crpl" "Chunk" <-CurrChunk SetScriptVar
+			<-CurrDisruption "Disruptor.crpl" "Health" <-DisHealth <-Scale 0.7 pow mul ceil SetScriptVar
+			<-CurrDisruption "Disruptor.crpl" "Emissions" <-DisEmissions <-Scale mul ceil SetScriptVar
+			<-CurrDisruption "Disruptor.crpl" "Delay" <-DisDelay <-Scale 0.7 pow div ceil SetScriptVar
+			once
+			1 ->Triggered
+			90 SetTimer2
+			endonce
+		endif
+	loop
+loop
+
+<-Triggered 1 eq <-NotTutored 1 eq GetTimer2 eq0 and and if
+	ClearConversation
+	1 "Skars, red alert!" AddConversationMessage
+	0 "What is happening to our relays? Or collectors, for that matter?" AddConversationMessage
+	1 "It appears to be a sabotage unit sent by loki to disrupt our communications. Remove them with sniper fire" AddConversationMessage
+	0 "And if i don't?" AddConversationMessage
+	1 "Overconfidence is a slow and insidious killer." AddConversationMessage
+	ShowConversation
+	0 ->NotTutored
+	PauseGame
+endif
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "" SetImage
+	Self "main" 0 0 0 0 SetImageColor
+	Self CONST_TAKEMAPSPACE  0 SetUnitAttribute
+	

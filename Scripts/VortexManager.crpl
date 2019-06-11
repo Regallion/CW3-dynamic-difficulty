@@ -1,0 +1,105 @@
+#Vortex manager. Generates creeper vortices on cooldown. 
+$VorMMainID:1 #Which main script this hooks into
+$Cost:1000.0 #Cost to spawn a vortex, in points.
+$Weight:1 #If all managers are weight 1, the points are distributed with approx eq chance. Extra weight means this eats more points.
+$VortexRadius:6.0 #How big the vortex is. This is later multiiplied by scaling factor.
+$VortexThreshold:-15.0 #How creepy a vortex area has to be at minimum.
+$VortexDelay:200.0 #How long before the vortex erupts in seconds. This is later divided by scaling factor
+$VortexStrength:-50.0 #How strong the pull of the vortex is. This is later multiiplied by scaling factor.
+$VortexAngle:85.0 #Vortex angle in degrees. 0 turns it into a singularity.
+$SporeHealth:0.3 #Base health of spawned spores. This is later multiiplied by scaling factor.
+$SporePayload:5 #Base payload of spawned spores. This is later multiplied by scaling factor.
+$SporeAmount:0.012 #How many spores spawn per level of creeper. Not modified by scaler.
+$Tutorial:0 #If set to 1, the first spawned vortex will trigger a conversation. 
+
+
+once 
+	1 delay
+	ClearTraceLog
+	HideTraceLog
+	"MainID" <-VorMMainID GetCoresWithVar
+	0 do
+		->MainUID
+	loop
+	"ChunkmMainID" <-VorMMainID GetCoresWithVar
+	0 do
+		->ChManUID
+	loop
+	"SpDMainID" <-VorMMainID GetCoresWithVar
+	0 do
+		->SpDMainID
+	loop
+	<-Weight 0 do
+		<-SpDMainID "SpawnDirector.crpl" "ManagerList" GetScriptVar ->ManagerList
+		<-ManagerList Self AppendToList
+		<-SpDMainID "SpawnDirector.crpl" "ManagerList" <-ManagerList SetScriptVar
+		<-SpDMainID "SpawnDirector.crpl" "ManagerScripts" GetScriptVar ->ManagerScripts
+		<-ManagerScripts "VortexManager.crpl" AppendToList
+		<-SpDMainID "SpawnDirector.crpl" "ManagerScripts" <-ManagerScripts SetScriptVar
+	loop
+	@awake
+	<-Tutorial ->NotTutored
+endonce 
+
+-1 ->TargetChunk
+-1000 ->MaxPrio
+0 ->CurrVortex
+ <-ChManUID "ChunkManager.crpl" "Chunks" GetScriptVar ->Chunks
+ <-MainUID "ManagerScript.crpl" "ScalingFactor" GetScriptVar ->Scale
+ <-PointsBudget <-Cost gte if
+	0 180 RandInt Delay
+	 <-Chunks GetListCount 0 do
+		0 ->ChunkFailed
+		<-Chunks I GetListElement "Chunk.crpl" "AdjCreeperPriority" GetScriptVar ->CurrPrio
+		<-Chunks I GetListElement "Chunk.crpl" "Disabled" GetScriptVar if
+			1 ->ChunkFailed
+		endif
+		<-CurrPrio <-MaxPrio gt <-CurrPrio <-VortexThreshold lte and <-ChunkFailed not and if
+			<-Chunks I GetListElement ->TargetChunk
+			<-CurrPrio ->MaxPrio
+		endif
+	 loop
+	<-PointsBudget <-Cost sub ->PointsBudget
+endif
+ 
+ <-TargetChunk -1 gt if 
+	<-ChManUID "ChunkManager.crpl" "ChunkSize" GetScriptVar 2 div ceil ->Chunkoffset
+	<-TargetChunk CONST_COORDX GetUnitAttribute <-Chunkoffset neg <-Chunkoffset 1 add RandInt add 1 max MapWidth 1 sub min ->X
+	<-TargetChunk CONST_COORDY GetUnitAttribute <-Chunkoffset neg <-Chunkoffset 1 add RandInt add 1 max MapHeight 1 sub min ->Y
+	"CRPLCORE" <-X <-Y CreateUnit ->CurrVortex
+	<-CurrVortex "Vortex.crpl" AddScriptToUnit
+	<-CurrVortex "Vortex.crpl" "VortexManager" Self SetScriptVar
+	<-CurrVortex "Vortex.crpl" "Chunk" <-TargetChunk SetScriptVar
+	<-CurrVortex "Vortex.crpl" "Radius" <-VortexRadius <-Scale mul ceil SetScriptVar
+	<-CurrVortex "Vortex.crpl" "Delay" <-VortexDelay <-Scale div ceil SetScriptVar
+	<-CurrVortex "Vortex.crpl" "Strength" <-VortexStrength <-Scale mul ceil SetScriptVar
+	<-CurrVortex "Vortex.crpl" "Angle" <-VortexAngle SetScriptVar
+	<-CurrVortex "Vortex.crpl" "Shealth" <-SporeHealth <-Scale mul ceil SetScriptVar
+	<-CurrVortex "Vortex.crpl" "Spayload" <-SporePayload <-Scale mul ceil 0 round SetScriptVar
+	<-CurrVortex "Vortex.crpl" "Samount" <-SporeAmount SetScriptVar
+	once
+	1 ->Triggered
+	90 SetTimer2
+	endonce
+ endif
+
+<-Triggered 1 eq <-NotTutored 1 eq GetTimer2 eq0 and and if
+	ClearConversation
+	1 "Skars, look, do you see the smoke rising from the creeper?" AddConversationMessage
+	0 "That's...new." AddConversationMessage
+	1 "It appears creeper in this area is concentrating itself for a mass conversion to spores" AddConversationMessage
+	1 "Ensure the level of creeper is low in the area, unless you trust your air defence will hold" AddConversationMessage
+	ShowConversation
+	0 ->NotTutored
+	PauseGame
+endif
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "" SetImage
+	Self "main" 0 0 0 0 SetImageColor
+	Self CONST_TAKEMAPSPACE  0 SetUnitAttribute
+	

@@ -1,0 +1,25 @@
+#Boolet
+
+
+once 
+	ClearTraceLog
+	HideTraceLog
+	@awake
+endonce 
+<-TargetUnit CONST_COORDX GetUnitAttribute ->X
+<-TargetUnit CONST_COORDY GetUnitAttribute ->Y
+<-Active 0 eq if
+	<-X <-Y 5 QueueMove
+	1 ->Active
+endif
+GetQueuedMoveCount eq0 if
+	<-TargetUnit 0.2 Damage 
+	Self 0 Destroy
+endif
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "Custom1" SetImage # TODO

@@ -1,0 +1,120 @@
+#Sweeper script. Clears out target chunk and then roams around killing stuff
+#Crashing code by Grabz
+once 
+	<-SweeperManager 0 eq if
+		self 0 destroy 
+		return
+	endif
+	@awake
+	-1 ->TargetUnit
+	Self CONST_HEALTH <-Health SetUnitAttribute
+endonce 
+ONCE #from sorrontis, creates shadow
+ Self "shadow" 0.9 0.9 SetImageScale
+ Self "shadow" "Custom0" SetImage
+ Self "shadow" 0 0 0 120 SetImageColor
+ Self "shadow" 15 -15 -0.5 SetImagePosition 
+ENDONCE
+
+Self "main" dup2 GetImageRotation <-MoveSpeed PI 180 div mul add SetImageRotation #rotate
+
+<-OriginalMove 0 eq if
+	<-TargetChunk CONST_COORDX GetUnitAttribute ->X
+	<-TargetChunk CONST_COORDY GetUnitAttribute ->Y
+	<-X <-Y <-MoveSpeed QueueMove
+	1 ->OriginalMove
+endif
+GetTimer3 eq0 if
+	<-TargetUnit -1 eq not if
+		<-TargetUnit CONST_COORDX GetUnitAttribute ->X
+		<-TargetUnit CONST_COORDY GetUnitAttribute ->Y
+
+	else
+		0 ->X
+		0 ->Y
+	endif
+	<-TargetUnit CONST_ISDESTROYED GetUnitAttribute 1 eq CurrentCoords <-X <-Y Distance 12 gt or <-TargetUnit -1 eq or if
+		-1 ->TargetUnit
+		CurrentCoords 12 GetUnitsInRange
+		0 do
+			->ProcessedUnit
+			<-ProcessedUnit GetUnitType "POWERZONE" eq not <-ProcessedUnit GetUnitType "SHIELDKEY" eq not <-ProcessedUnit GetUnitType "TECHARTIFACT" eq not <-ProcessedUnit GetUnitType "MESSAGEARTIFACT" eq not <-ProcessedUnit CONST_ISDESTROYED GetUnitAttribute 1 eq not and and and and if
+				<-ProcessedUnit ->TargetUnit
+				break
+			endif
+		loop
+		<-TargetUnit -1 eq  GetQueuedMoveCount 0 eq and if
+			CurrentX -10 10 RandInt add 1 max MapWidth 1 sub min ->X
+			CurrentY -10 10 RandInt add 1 max MapHeight 1 sub min ->Y
+			<-X <-Y <-MoveSpeed QueueMove
+		endif
+	endif
+	15 SetTimer3
+endif
+
+GetTimer0 eq0 <-TargetUnit CONST_ISDESTROYED GetUnitAttribute eq0 and <-TargetUnit -1 gt and if
+	"CRPLCORE" CurrentCoords CreateUnit ->CurrBoolet
+	<-CurrBoolet "Boolet.crpl" AddScriptToUnit
+	<-CurrBoolet "Boolet.crpl" "TargetUnit" <-TargetUnit SetScriptVar
+	<-FireDelay SetTimer0
+endif
+
+
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self CONST_SNIPERTARGET 1 SetUnitAttribute
+	Self CONST_SNIPERIGNORELOS 1 SetUnitAttribute
+	Self CONST_MAXHEALTH <-Health SetUnitAttribute
+	Self CONST_SHOWHEALTHBAR 1 SetUnitAttribute
+	Self "main" "Custom0" SetImage
+	Self CONST_TAKEMAPSPACE 1 SetUnitAttribute
+	<-OriginalMove GetQueuedMoveCount eq0 and if
+		<-X <-Y <-MoveSpeed QueueMove
+	endif
+:destroyed
+
+	7 CurrentCoords CellToPixel -0.9 0.5 0.5 0.1 CreateEffect
+	"CRPLCORE" 0 0 CreateUnit ->bodyUID
+	<-bodyUID "SweeperCrashing.crpl" AddScriptToUnit
+	Self CONST_PIXELCOORDX GetUnitAttribute ->pixelX
+	Self CONST_PIXELCOORDY GetUnitAttribute ->pixelY
+	<-bodyUID CONST_PIXELCOORDX <-pixelX SetUnitAttribute
+	<-bodyUID CONST_PIXELCOORDY <-pixelY SetUnitAttribute
+
+	<-bodyUID "SweeperCrashing.crpl" "flightSpeed" <-MoveSpeed SetScriptVar
+
+	GetQueuedMoveCount neq0 if 
+		CurrentCoords <-Y swap sub swap <-X swap sub ->OX ->OY 
+		<-OY <-OX atan2 ->Angle
+		<-Angle cos ->vectorX
+		<-Angle sin ->vectorY
+		<-bodyUID "SweeperCrashing.crpl" "vectorX" <-vectorX SetScriptVar
+		<-bodyUID "SweeperCrashing.crpl" "vectorY" <-vectorY SetScriptVar
+	else
+		<-bodyUID "SweeperCrashing.crpl" "vectorX" 0 SetScriptVar
+		<-bodyUID "SweeperCrashing.crpl" "vectorY" 0 SetScriptVar
+	endif
+
+	<-bodyUID "SweeperCrashing.crpl" "minAirScale" 0.9 SetScriptVar
+	<-bodyUID "SweeperCrashing.crpl" "maxAirScale" 1.2 SetScriptVar
+
+	<-bodyUID "SweeperCrashing.crpl" "rotationSpeed" -0.1 SetScriptVar
+
+	<-bodyUID "SweeperCrashing.crpl" "mode" 1 SetScriptVar
+	
+	<-bodyUID "main" "Custom4" SetImage
+	<-bodyUID "main" Self "main" GetImageRotation SetImageRotation
+	<-bodyUID "main" -0.3 SetImagePositionZ
+	<-bodyUID "main" 1 1 SetImageScale
+
+	<-bodyUID "shadow" "Custom4" SetImage
+	<-bodyUID "shadow" Self "main" GetImageRotation SetImageRotation
+	<-bodyUID "shadow" -0.2 SetImagePositionZ
+	<-bodyUID "shadow" 0.9 0.9 SetImageScale
+	<-bodyUID "shadow" 0 0 0 100 SetImageColor
+	<-bodyUID "shadow" -15 SetImagePositionY
+	<-bodyUID "shadow" 15 SetImagePositionX

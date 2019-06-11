@@ -1,0 +1,149 @@
+#Harasser manager script. Generates harasser portals on cooldown. 
+$HarMMainID:1 #Which main script this hooks into
+$Cost:200.0 #Cost to spawn a harasser, in points.
+$Weight:1 #If all managers are weight 1, the points are distributed with approx eq chance. Extra weight means this eats more points.
+$HarasserBloom:3.0 #How much time (in multiples of 45 seconds!) it takes for harasser portal to become a harasser. This is later divided by scaling factor.
+$HarasserDelay:2.0 #How much time (in multiples of 45 seconds!) it takes for a harasser to start flooding you. Set to 0 for no mercy.
+$HarasserEmissions:10.0 #How much will harassers emit? equivalent to a basic emitter setting. This is later multiplied by scaling factor.
+$HarasserInterval:60 #ditto, but for emission speed. THIS one is measured in frames!
+$HarasserThreshold:2 #How much adj economic potential a chunk needs to have to even be considered valid. Prevents early-game rushes.
+$HarasserAmt:1 #How many harassers to spawn per cycle.
+$Spacing:3.1 # how many chunks apart must the harasser targets be. Setting it to less than 2 means harassers cannot attack the same chunk. 
+$Tutorial:0 #If set to 1, the first spawned harasser portal will trigger a conversation. 
+
+
+once 
+	1 delay
+	ClearTraceLog
+	HideTraceLog
+	CreateList ->Harassers
+	<-Cooldown 30 mul SetTimer0
+	"MainID" <-HarMMainID GetCoresWithVar
+	0 do
+		->MainUID
+	loop
+	"ChunkmMainID" <-HarMMainID GetCoresWithVar
+	0 do
+		->ChManUID
+	loop
+	"SpDMainID" <-HarMMainID GetCoresWithVar
+	0 do
+		->SpDMainID
+	loop
+	<-Weight 0 do
+		<-SpDMainID "SpawnDirector.crpl" "ManagerList" GetScriptVar ->ManagerList
+		<-ManagerList Self AppendToList
+		<-SpDMainID "SpawnDirector.crpl" "ManagerList" <-ManagerList SetScriptVar
+		<-SpDMainID "SpawnDirector.crpl" "ManagerScripts" GetScriptVar ->ManagerScripts
+		<-ManagerScripts "HarasserManager.crpl" AppendToList
+		<-SpDMainID "SpawnDirector.crpl" "ManagerScripts" <-ManagerScripts SetScriptVar
+	loop
+	@awake
+	<-Tutorial ->NotTutored
+endonce 
+
+-1 ->CurrChunk
+0 ->MaxPrio
+0 ->CurrPortal
+0 ->CurrHarassed
+0 ->CurrBackdoored
+ <-ChManUID "ChunkManager.crpl" "Chunks" GetScriptVar ->Chunks
+ <-MainUID "ManagerScript.crpl" "ScalingFactor" GetScriptVar ->Scale
+<-ChManUID "ChunkManager.crpl" "ChunkSize" GetScriptVar ->ChunkSize
+<-ChunkSize <-Spacing mul ->MinDistance
+<-ChunkSize 2 div ceil ->Chunkoffset
+ 
+ <-Harassers GetListCount 0 gt if
+	<-Harassers GetListCount 0 do
+		<-Harassers I GetListElement "HarasserPortal.crpl" "Chunk" GetScriptVar ->Chunk
+		<-Chunk "Chunk.crpl" "Harassed" 1 SetScriptVar
+		<-Harassers I GetListElement "Harasser.crpl" "Chunk" GetScriptVar ->Chunk
+		<-Chunk "Chunk.crpl" "Harassed" 1 SetScriptVar 
+	loop
+endif
+
+ CreateList ->TargetChunks 
+ CreateList ->Prios
+ <-PointsBudget <-Cost gte if
+	0 180 RandInt Delay
+	<-HarasserAmt <-PointsBudget <-Cost div floor mul ->SpawnAmt
+	 <-Chunks GetListCount 0 do
+		0 ->ChunkFailed
+		<-Chunks I GetListElement "Chunk.crpl" "AdjEconomicPriority" GetScriptVar ->CurrPrio
+		<-Chunks I GetListElement "Chunk.crpl" "Harassed" GetScriptVar ->CurrHarassed
+		<-Chunks I GetListElement "Chunk.crpl" "Backdoored" GetScriptVar ->CurrBackdoored
+		<-Chunks I GetListElement CONST_COORDX GetUnitAttribute ->X
+		<-Chunks I GetListElement CONST_COORDY GetUnitAttribute ->Y
+		<-Chunks I GetListElement "Chunk.crpl" "Disabled" GetScriptVar if
+			1 ->ChunkFailed
+		endif
+		<-ChunkFailed not if
+			<-SpawnAmt 0 do
+				<-TargetChunks I GetListElement neq0 if
+					<-TargetChunks I GetListElement CONST_COORDX GetUnitAttribute <-TargetChunks I GetListElement CONST_COORDY GetUnitAttribute <-X <-Y Distance <-MinDistance lte if
+						1 ->ChunkFailed 
+						break
+					endif
+				else
+				break
+				endif
+			loop
+		endif
+		<-ChunkFailed not if
+			<-SpawnAmt  0 do
+				 <-CurrPrio <-Prios I GetListElement gt <-CurrHarassed eq0 <-CurrBackdoored eq0 <-CurrPrio <-HarasserThreshold gte and and and if
+					<-TargetChunks I <-Chunks J GetListElement InsertListElement
+					<-Prios I <-CurrPrio InsertListElement
+					<-TargetChunks <-SpawnAmt  RemoveListElement
+					<-Prios <-SpawnAmt RemoveListElement
+					break
+				endif
+			loop
+		endif
+	 loop
+	<-PointsBudget <-Cost <-SpawnAmt mul sub ->PointsBudget
+ endif
+ 
+ <-TargetChunks GetListCount 0 do 
+	<-TargetChunks I GetListElement ->CurrChunk
+	<-CurrChunk CONST_COORDX GetUnitAttribute <-Chunkoffset neg <-Chunkoffset 1 add RandInt add 1 max MapWidth 1 sub min ->X
+	<-CurrChunk CONST_COORDY GetUnitAttribute <-Chunkoffset neg <-Chunkoffset 1 add RandInt add 1 max MapHeight 1 sub min ->Y
+	"CRPLCORE" <-X <-Y CreateUnit ->CurrPortal
+	"Retro10" PlaySound
+	<-CurrPortal "HarasserPortal.crpl" AddScriptToUnit
+	<-CurrPortal "HarasserPortal.crpl" "HarasserManager" Self SetScriptVar
+	<-CurrPortal "HarasserPortal.crpl" "Chunk" <-TargetChunk SetScriptVar
+	<-CurrPortal "HarasserPortal.crpl" "BloomTimer" <-HarasserBloom <-Scale div ceil SetScriptVar
+	<-CurrPortal "HarasserPortal.crpl" "DelayTimer" <-HarasserDelay <-Scale div ceil SetScriptVar
+	<-CurrPortal "HarasserPortal.crpl" "Emissions" <-HarasserEmissions <-Scale mul ceil SetScriptVar
+	<-CurrPortal "HarasserPortal.crpl" "Interval" <-HarasserInterval <-Scale div 0 round SetScriptVar
+	<-Harassers <-CurrPortal AppendToList
+	once
+	1 ->Triggered
+	90 SetTimer2
+	endonce
+loop
+
+<-Triggered 1 eq <-NotTutored 1 eq GetTimer2 eq0 and and if
+	ClearConversation
+	1 "Dimensional portal detected." AddConversationMessage
+	0 "Is it a portal from a dimension of candy by any chance?" AddConversationMessage
+	1 "No." AddConversationMessage
+	0 "So...?" AddConversationMessage
+	1 "It's a portal right to our energy-producing area. It appears a specialized emitter will travel through it shortly." AddConversationMessage
+	0 "I suppose i should nullify it before that happens then." AddConversationMessage
+	1 "Correct. Please note that neither the portal, nor the emitter, will proviide us with a power zone" AddConversationMessage
+	ShowConversation
+	0 ->NotTutored
+	PauseGame
+endif
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 0 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "" SetImage
+	Self "main" 0 0 0 0 SetImageColor
+	Self CONST_TAKEMAPSPACE  0 SetUnitAttribute
+	

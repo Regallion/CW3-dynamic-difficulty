@@ -1,0 +1,60 @@
+#backdoorer portal script. Creates a backdoorer when timer elapses. 
+
+
+once 
+	<-BackdoorerManager 0 eq if
+		self 0 destroy 
+		return
+	endif
+	ClearTraceLog
+	HideTraceLog
+	<-BloomTimer 30 mul 45 mul 0 round SetTimer0
+	@awake
+endonce 
+
+GetTimer1 eq0 if
+	16 CurrentCoords CellToPixel -1 0.5 dup 0.02 90 CreateEffectClipped 
+	90 SetTimer1
+	GetTimer0 30.00 div 0 Round SetText
+	"Retro13" PlaySound
+endif
+"Will summon a backdoorer in " GetTimer0 30.00 div 0 Round " seconds." concat concat SetPopupText
+ GetTimer0 eq0  if
+	"CRPLCORE" CurrentCoords CreateUnit ->Backdoorer
+	<-Backdoorer "Backdoorer.crpl" AddScriptToUnit
+	"Retro10" PlaySound
+	<-Backdoorer "Backdoorer.crpl" "BackdoorerManager" <-BackdoorerManager SetScriptVar
+	<-Backdoorer "Backdoorer.crpl" "Chunk" <-Chunk SetScriptVar
+	<-Backdoorer "Backdoorer.crpl" "Emissions" <-Emissions  SetScriptVar
+	<-Backdoorer "Backdoorer.crpl" "Interval" <-Interval SetScriptVar
+	<-Backdoorer "Backdoorer.crpl" "Shealth" <-Shealth SetScriptVar
+	<-Backdoorer "Backdoorer.crpl" "Spayload" <-Spayload SetScriptVar
+	<-Backdoorer "Backdoorer.crpl" "Samount" <-Samount SetScriptVar
+	<-Backdoorer "Backdoorer.crpl" "Sinterval" <-Sinterval SetScriptVar
+	<-BackdoorerManager "BackdoorerManager.crpl" "Backdoorers" GetScriptVar ->Backdoorers
+	<-Backdoorers <-Backdoorer AppendToList
+	<-BackdoorerManager "BackdoorerManager.crpl" "Backdoorers" <-Backdoorers  SetScriptVar 
+	Self 0 Destroy
+ endif
+ 
+
+
+:awake
+	Self CONST_COUNTSFORVICTORY 0 SetUnitAttribute 
+	Self CONST_NULLIFIERDAMAGES 1 SetUnitAttribute 
+	Self CONST_SUPPORTSDIGITALIS 0 SetUnitAttribute
+	Self CONST_CREATEPZ 0 SetUnitAttribute
+	Self "main" "" SetImage # TODO
+	Self "main" 0 0 0 0 SetImageColor
+	Self CONST_TAKEMAPSPACE 1 SetUnitAttribute
+	
+:destroyed
+<-Chunk "Chunk.crpl" "Backdoored" 0 SetScriptVar
+<-BackdoorerManager "BackdoorerManager.crpl" "Backdoorers" GetScriptVar ->Backdoorers
+<-Backdoorers GetListCount 0 do
+	<-Backdoorers I GetListElement Self eq if
+		<-Backdoorers I RemoveListElement
+		break
+	endif
+loop 
+<-BackdoorerManager "BackdoorerManager.crpl" "Backdoorers" <-Backdoorers  SetScriptVar 
