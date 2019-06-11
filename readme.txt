@@ -8,7 +8,7 @@ To have an actual effect on the gameplay, add several (as many as you like) scri
 3. "SweeperManager.crpl" - generates UFOs to attack frontline military.
 4. "VortexManager.crpl" - generates creeper vortices around the map. Those erupt into spores and are generally disruptive.
 5. "DisruptorManager.crpl" - generates timebombs on unsecured relays and collectors.
-6. "EnemyManager.crpl" - scales enemy emitters and spore towers with the scaling factor. Also redistributes production from destroyed units to surviving ones.
+6. "EnemyManager.crpl" - scales enemy emitters and spore towers with the scaling factor. Also redistributes production from destroyed units to surviving ones. !SHOULD BE PLACED ON-MAP!
 
 Tips:
 When deciding on Chunk size, keep in mind that a map should be roughly 15 chunks across. If your map is very irregularily shaped (like 5x200) this script will behave weirdly. However, the chunks should not be less than 2 units across for the same reason.
